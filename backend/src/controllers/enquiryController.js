@@ -1,10 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { validationResult } = require('express-validator');
 const path = require('path');
 const fs = require('fs');
 const { parsePagination, paginatedResponse, successResponse } = require('../utils/helpers');
-
-const prisma = new PrismaClient();
 
 const generateEnquiryNo = async () => {
   const year = new Date().getFullYear().toString().slice(-2);

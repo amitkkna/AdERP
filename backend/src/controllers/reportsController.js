@@ -1,7 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { successResponse } = require('../utils/helpers');
-
-const prisma = new PrismaClient();
 
 // 1. Asset-wise Profitability
 exports.getAssetProfitability = async (req, res, next) => {

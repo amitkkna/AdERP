@@ -1,8 +1,6 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { validationResult } = require('express-validator');
 const { successResponse } = require('../utils/helpers');
-
-const prisma = new PrismaClient();
 
 // GET /api/portal/dashboard — stats for the logged-in client
 exports.getDashboard = async (req, res, next) => {

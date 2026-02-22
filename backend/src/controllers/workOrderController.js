@@ -1,7 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { parsePagination, paginatedResponse, successResponse } = require('../utils/helpers');
-
-const prisma = new PrismaClient();
 
 // Full booking include used in detail views
 const BOOKING_INCLUDE = {

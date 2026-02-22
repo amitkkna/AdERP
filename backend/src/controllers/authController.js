@@ -1,11 +1,9 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { validationResult } = require('express-validator');
 const config = require('../config');
 const { successResponse } = require('../utils/helpers');
-
-const prisma = new PrismaClient();
 
 const generateToken = (userId) => {
   return jwt.sign({ userId }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });

@@ -1,8 +1,6 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { validationResult } = require('express-validator');
 const { parsePagination, paginatedResponse, successResponse } = require('../utils/helpers');
-
-const prisma = new PrismaClient();
 
 // GET /api/pdcs  — list with filters
 exports.getPDCs = async (req, res, next) => {

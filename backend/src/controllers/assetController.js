@@ -1,10 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { validationResult } = require('express-validator');
 const path = require('path');
 const fs = require('fs');
 const { parsePagination, paginatedResponse, successResponse, generateAssetCode } = require('../utils/helpers');
-
-const prisma = new PrismaClient();
 
 exports.getAssets = async (req, res, next) => {
   try {
