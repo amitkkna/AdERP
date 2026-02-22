@@ -5,34 +5,39 @@ const prisma = new PrismaClient();
 
 exports.getStats = async (req, res, next) => {
   try {
+    // Batch 1: Simple counts
     const [
       totalAssets,
       availableAssets,
       bookedAssets,
       maintenanceAssets,
-      assetsByType,
-      assetsByZone,
-      upcomingExpiries,
       totalClients,
       totalBookings,
       activeBookings,
       pendingInvoices,
-      recentBookings,
-      revenueData,
-      expenseTotal,
-      upcomingPaymentDues,
     ] = await Promise.all([
       prisma.asset.count({ where: { isActive: true } }),
       prisma.asset.count({ where: { isActive: true, status: 'AVAILABLE' } }),
       prisma.asset.count({ where: { isActive: true, status: 'BOOKED' } }),
       prisma.asset.count({ where: { isActive: true, status: 'UNDER_MAINTENANCE' } }),
+      prisma.client.count({ where: { isActive: true } }),
+      prisma.booking.count(),
+      prisma.booking.count({ where: { status: { in: ['ACTIVE', 'CONFIRMED'] } } }),
+      prisma.invoice.count({ where: { status: { in: ['SENT', 'OVERDUE', 'PARTIALLY_PAID'] } } }),
+    ]);
 
+    // Batch 2: Aggregates and group queries
+    const [
+      assetsByType,
+      assetsByZone,
+      revenueData,
+      expenseTotal,
+    ] = await Promise.all([
       prisma.asset.groupBy({
         by: ['type'],
         where: { isActive: true },
         _count: { id: true },
       }),
-
       prisma.zone.findMany({
         where: { isActive: true },
         select: {
@@ -43,7 +48,19 @@ exports.getStats = async (req, res, next) => {
         },
         orderBy: { name: 'asc' },
       }),
+      prisma.invoice.aggregate({
+        where: { status: 'PAID' },
+        _sum: { totalAmount: true },
+      }),
+      prisma.expense.aggregate({ _sum: { amount: true } }),
+    ]);
 
+    // Batch 3: Complex queries with includes
+    const [
+      upcomingExpiries,
+      recentBookings,
+      upcomingPaymentDues,
+    ] = await Promise.all([
       prisma.asset.findMany({
         where: {
           isActive: true,
@@ -64,12 +81,6 @@ exports.getStats = async (req, res, next) => {
         orderBy: { permissionExpiry: 'asc' },
         take: 10,
       }),
-
-      prisma.client.count({ where: { isActive: true } }),
-      prisma.booking.count(),
-      prisma.booking.count({ where: { status: { in: ['ACTIVE', 'CONFIRMED'] } } }),
-      prisma.invoice.count({ where: { status: { in: ['SENT', 'OVERDUE', 'PARTIALLY_PAID'] } } }),
-
       prisma.booking.findMany({
         take: 5,
         orderBy: { createdAt: 'desc' },
@@ -82,14 +93,6 @@ exports.getStats = async (req, res, next) => {
           },
         },
       }),
-
-      prisma.invoice.aggregate({
-        where: { status: 'PAID' },
-        _sum: { totalAmount: true },
-      }),
-
-      prisma.expense.aggregate({ _sum: { amount: true } }),
-
       prisma.recurringExpense.findMany({
         where: {
           isActive: true,
