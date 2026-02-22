@@ -418,12 +418,10 @@ async function main() {
   }
   console.log(`${paymentsData.length} payments created.`);
 
-  // Create sample expenses (CAPEX + OPEX)
+  // Create sample expenses
   const expensesData = [
-    // CAPEX — Construction costs
     {
       category: 'CONSTRUCTION',
-      type: 'CAPEX',
       amount: 350000,
       date: new Date('2024-06-15'),
       description: 'Billboard structure construction',
@@ -433,7 +431,6 @@ async function main() {
     },
     {
       category: 'INSTALLATION',
-      type: 'CAPEX',
       amount: 75000,
       date: new Date('2024-06-25'),
       description: 'Flex installation and wiring',
@@ -443,7 +440,6 @@ async function main() {
     },
     {
       category: 'CONSTRUCTION',
-      type: 'CAPEX',
       amount: 550000,
       date: new Date('2024-08-10'),
       description: 'Highway billboard structure with LED panel',
@@ -453,7 +449,6 @@ async function main() {
     },
     {
       category: 'CONSTRUCTION',
-      type: 'CAPEX',
       amount: 280000,
       date: new Date('2024-09-01'),
       description: 'Unipole structure erection',
@@ -461,10 +456,8 @@ async function main() {
       reference: 'CSF/INV/2024/067',
       assetId: assets[1].id,
     },
-    // OPEX — Monthly rent
     {
       category: 'RENT',
-      type: 'OPEX',
       amount: 8000,
       date: new Date('2026-01-05'),
       description: 'Monthly land rent - January 2026',
@@ -474,7 +467,6 @@ async function main() {
     },
     {
       category: 'RENT',
-      type: 'OPEX',
       amount: 8000,
       date: new Date('2026-02-05'),
       description: 'Monthly land rent - February 2026',
@@ -484,7 +476,6 @@ async function main() {
     },
     {
       category: 'RENT',
-      type: 'OPEX',
       amount: 12000,
       date: new Date('2026-01-05'),
       description: 'Highway land lease - January 2026',
@@ -492,10 +483,8 @@ async function main() {
       reference: 'NHAI/LEASE/JAN/2026',
       assetId: assets[2].id,
     },
-    // OPEX — Municipal tax
     {
       category: 'MUNICIPAL_TAX',
-      type: 'OPEX',
       amount: 15000,
       date: new Date('2026-01-10'),
       description: 'Annual municipal advertisement tax - Raipur',
@@ -505,7 +494,6 @@ async function main() {
     },
     {
       category: 'MUNICIPAL_TAX',
-      type: 'OPEX',
       amount: 25000,
       date: new Date('2026-01-10'),
       description: 'Annual municipal advertisement tax - Highway',
@@ -513,10 +501,8 @@ async function main() {
       reference: 'RMC/TAX/2026/0203',
       assetId: assets[2].id,
     },
-    // OPEX — Electricity
     {
       category: 'ELECTRICITY',
-      type: 'OPEX',
       amount: 3500,
       date: new Date('2026-01-20'),
       description: 'Frontlit electricity bill - January',
@@ -526,7 +512,6 @@ async function main() {
     },
     {
       category: 'ELECTRICITY',
-      type: 'OPEX',
       amount: 8500,
       date: new Date('2026-01-20'),
       description: 'LED panel electricity bill - January',
@@ -534,10 +519,8 @@ async function main() {
       reference: 'CSPDCL/JAN/2026/4522',
       assetId: assets[2].id,
     },
-    // OPEX — Maintenance
     {
       category: 'MAINTENANCE',
-      type: 'OPEX',
       amount: 5000,
       date: new Date('2026-01-25'),
       description: 'Flex replacement and cleaning',
@@ -545,10 +528,8 @@ async function main() {
       reference: 'LSR/2026/003',
       assetId: assets[5].id,
     },
-    // OPEX — Permission fee
     {
       category: 'PERMISSION_FEE',
-      type: 'OPEX',
       amount: 20000,
       date: new Date('2025-12-15'),
       description: 'Annual permission renewal fee',
