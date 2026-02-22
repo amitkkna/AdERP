@@ -1,0 +1,515 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  ACCOUNTANT
+  CLIENT
+}
+
+enum AssetType {
+  BILLBOARD
+  UNIPOLE
+  HOARDING
+  GANTRY
+  OTHER
+}
+
+enum Illumination {
+  FRONTLIT
+  BACKLIT
+  NONLIT
+  LED
+}
+
+enum AssetCondition {
+  GOOD
+  FAIR
+  POOR
+}
+
+enum Ownership {
+  OWNED
+  LEASED
+  THIRD_PARTY
+}
+
+enum AssetStatus {
+  AVAILABLE
+  BOOKED
+  UNDER_MAINTENANCE
+  BLOCKED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+  UPI
+  ONLINE
+}
+
+enum ExpenseCategory {
+  RENT
+  MUNICIPAL_TAX
+  ELECTRICITY
+  MAINTENANCE
+  INSURANCE
+  PERMISSION_FEE
+  CONSTRUCTION
+  INSTALLATION
+  OTHER
+}
+
+enum Frequency {
+  MONTHLY
+  QUARTERLY
+  HALF_YEARLY
+  YEARLY
+}
+
+enum EnquiryStatus {
+  NEW
+  WON
+  LOST
+}
+
+enum PDCStatus {
+  HELD
+  DEPOSITED
+  CLEARED
+  BOUNCED
+  CANCELLED
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum WorkOrderType {
+  MOUNT
+  DEMOUNT
+}
+
+enum WorkOrderStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(CLIENT)
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enquiriesCreated  Enquiry[]         @relation("EnquiryCreatedBy")
+  enquiriesAssigned Enquiry[]         @relation("EnquiryAssignedTo")
+  enquiryActivities EnquiryActivity[] @relation("ActivityCreatedBy")
+  client            Client?
+
+  @@map("users")
+}
+
+model Zone {
+  id          Int      @id @default(autoincrement())
+  name        String
+  city        String
+  district    String
+  state       String   @default("Chhattisgarh")
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assets Asset[]
+
+  @@map("zones")
+}
+
+model Asset {
+  id               Int            @id @default(autoincrement())
+  code             String         @unique
+  name             String
+  type             AssetType
+  sizeWidth        Float
+  sizeHeight       Float
+  locationAddress  String
+  locationCity     String
+  locationDistrict String
+  latitude         Float?
+  longitude        Float?
+  facingDirection  String?
+  illumination     Illumination   @default(NONLIT)
+  material         String?
+  installationDate DateTime?
+  condition        AssetCondition @default(GOOD)
+  ownership        Ownership      @default(OWNED)
+  status           AssetStatus    @default(AVAILABLE)
+  monthlyRate      Decimal        @db.Decimal(12, 2)
+  quarterlyRate    Decimal?       @db.Decimal(12, 2)
+  yearlyRate       Decimal?       @db.Decimal(12, 2)
+  permissionNumber String?
+  permissionExpiry DateTime?
+  notes            String?
+  isActive         Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  zoneId Int
+  zone   Zone @relation(fields: [zoneId], references: [id])
+
+  images             AssetImage[]
+  bookingAssets      BookingAsset[]
+  enquiryAssets      EnquiryAsset[]
+  expenses           Expense[]
+  recurringExpenses  RecurringExpense[]
+  quotationItems     QuotationItem[]
+
+  @@map("assets")
+}
+
+model AssetImage {
+  id        Int      @id @default(autoincrement())
+  url       String
+  caption   String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  assetId Int
+  asset   Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@map("asset_images")
+}
+
+model Client {
+  id             Int      @id @default(autoincrement())
+  companyName    String
+  contactPerson  String
+  email          String   @unique
+  phone          String
+  alternatePhone String?
+  address        String
+  city           String
+  state          String   @default("Chhattisgarh")
+  pincode        String?
+  gstNumber      String?
+  panNumber      String?
+  notes          String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  bookings   Booking[]
+  enquiries  Enquiry[]
+  quotations Quotation[]
+
+  userId Int?   @unique
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@map("clients")
+}
+
+model Booking {
+  id          Int           @id @default(autoincrement())
+  bookingCode String        @unique
+  startDate   DateTime
+  endDate     DateTime
+  totalAmount Decimal       @db.Decimal(12, 2)
+  status      BookingStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  clientId Int
+  client   Client @relation(fields: [clientId], references: [id])
+
+  bookingAssets BookingAsset[]
+  invoices      Invoice[]
+  enquiry       Enquiry?
+  workOrders    WorkOrder[]
+
+  @@map("bookings")
+}
+
+model BookingAsset {
+  id          Int      @id @default(autoincrement())
+  monthlyRate Decimal  @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+
+  bookingId Int
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  assetId Int
+  asset   Asset @relation(fields: [assetId], references: [id])
+
+  @@unique([bookingId, assetId])
+  @@map("booking_assets")
+}
+
+model Invoice {
+  id            Int           @id @default(autoincrement())
+  invoiceNumber String        @unique
+  invoiceDate   DateTime      @default(now())
+  dueDate       DateTime
+  subtotal      Decimal       @db.Decimal(12, 2)
+  taxRate       Decimal       @db.Decimal(5, 2) @default(18.00)
+  taxAmount     Decimal       @db.Decimal(12, 2)
+  totalAmount   Decimal       @db.Decimal(12, 2)
+  status        InvoiceStatus @default(DRAFT)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  bookingId Int
+  booking   Booking @relation(fields: [bookingId], references: [id])
+
+  payments Payment[]
+  pdcs     PDC[]
+
+  @@map("invoices")
+}
+
+model Payment {
+  id             Int           @id @default(autoincrement())
+  amount         Decimal       @db.Decimal(12, 2)
+  paymentDate    DateTime      @default(now())
+  method         PaymentMethod @default(BANK_TRANSFER)
+  transactionRef String?
+  notes          String?
+  createdAt      DateTime      @default(now())
+
+  invoiceId Int
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("payments")
+}
+
+model Expense {
+  id          Int             @id @default(autoincrement())
+  category    ExpenseCategory
+  amount      Decimal         @db.Decimal(12, 2)
+  date        DateTime
+  description String?
+  vendor      String?
+  reference   String?
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  assetId Int
+  asset   Asset @relation(fields: [assetId], references: [id])
+
+  @@map("expenses")
+}
+
+model RecurringExpense {
+  id          Int             @id @default(autoincrement())
+  category    ExpenseCategory
+  frequency   Frequency
+  amount      Decimal         @db.Decimal(12, 2)
+  description String?
+  startDate   DateTime
+  nextDueDate DateTime
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  assetId Int
+  asset   Asset @relation(fields: [assetId], references: [id])
+
+  @@map("recurring_expenses")
+}
+
+model Enquiry {
+  id        Int           @id @default(autoincrement())
+  enquiryNo String        @unique
+
+  // Prospect / client info
+  clientId      Int?
+  client        Client?   @relation(fields: [clientId], references: [id])
+  clientName    String
+  contactPerson String
+  phone         String
+  email         String?
+
+  // Requirement
+  locationPreference String?
+  requirementNotes   String?
+  startDate          DateTime?
+  endDate            DateTime?
+  budget             Decimal?  @db.Decimal(12, 2)
+  source             String?
+
+  // Status
+  status     EnquiryStatus @default(NEW)
+  lostReason String?
+
+  // Follow-up
+  followUpDate DateTime?
+  notes        String?
+
+  // If won — linked booking
+  bookingId Int?     @unique
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+
+  // Assignment & audit
+  assignedToId Int?
+  assignedTo   User? @relation("EnquiryAssignedTo", fields: [assignedToId], references: [id])
+  createdById  Int
+  createdBy    User  @relation("EnquiryCreatedBy", fields: [createdById], references: [id])
+
+  activities    EnquiryActivity[]
+  enquiryAssets EnquiryAsset[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("enquiries")
+}
+
+model EnquiryAsset {
+  id        Int @id @default(autoincrement())
+  enquiryId Int
+  enquiry   Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  assetId   Int
+  asset     Asset   @relation(fields: [assetId], references: [id])
+
+  @@unique([enquiryId, assetId])
+  @@map("enquiry_assets")
+}
+
+model EnquiryActivity {
+  id          Int      @id @default(autoincrement())
+  enquiryId   Int
+  enquiry     Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  type        String
+  description String
+  createdById Int
+  createdBy   User     @relation("ActivityCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@map("enquiry_activities")
+}
+
+model PDC {
+  id             Int       @id @default(autoincrement())
+  chequeNumber   String
+  bankName       String
+  branchName     String?
+  chequeDate     DateTime                    // date written on the cheque
+  amount         Decimal   @db.Decimal(12, 2)
+  status         PDCStatus @default(HELD)
+  depositedDate  DateTime?                   // when actually deposited to bank
+  clearedDate    DateTime?                   // when bank confirmed cleared
+  bouncedDate    DateTime?                   // if bounced
+  bounceReason   String?
+  penaltyAmount  Decimal?  @db.Decimal(12, 2)
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  invoiceId   Int
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("pdcs")
+}
+
+model Quotation {
+  id            Int             @id @default(autoincrement())
+  quotationNo   String          @unique
+  validUntil    DateTime
+  status        QuotationStatus @default(DRAFT)
+  subtotal      Decimal         @db.Decimal(12, 2)
+  taxRate       Decimal         @db.Decimal(5, 2)  @default(18.00)
+  taxAmount     Decimal         @db.Decimal(12, 2)
+  totalAmount   Decimal         @db.Decimal(12, 2)
+  notes         String?
+  terms         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  clientId Int
+  client   Client @relation(fields: [clientId], references: [id])
+
+  items QuotationItem[]
+
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id          Int       @id @default(autoincrement())
+  description String
+  location    String?
+  size        String?
+  monthlyRate Decimal   @db.Decimal(12, 2)
+  months      Int       @default(1)
+  amount      Decimal   @db.Decimal(12, 2)
+  createdAt   DateTime  @default(now())
+
+  quotationId Int
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  assetId Int?
+  asset   Asset? @relation(fields: [assetId], references: [id])
+
+  @@map("quotation_items")
+}
+
+model WorkOrder {
+  id                  Int             @id @default(autoincrement())
+  workOrderNo         String          @unique
+  type                WorkOrderType
+  status              WorkOrderStatus @default(PENDING)
+  assignedTo          String?         // mounter name
+  assignedPhone       String?         // mounter contact number
+  scheduledDate       DateTime?       // planned execution date
+  completedDate       DateTime?       // actual completion date
+  flexSize            String?         // e.g. "20x10 ft" — mount only
+  flexMaterial        String?         // e.g. "Star Flex 440 GSM"
+  flexCopies          Int?            // number of flex copies
+  flexDesignRef       String?         // design / print reference
+  specialInstructions String?
+  supervisorNotes     String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  bookingId Int
+  booking   Booking @relation(fields: [bookingId], references: [id])
+
+  @@map("work_orders")
+}
