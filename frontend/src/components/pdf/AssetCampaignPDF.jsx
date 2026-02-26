@@ -20,6 +20,7 @@ const typeBadge = (type) => {
 };
 
 const s = StyleSheet.create({
+  /* Cover page */
   coverPage: { fontFamily: 'Helvetica', fontSize: 9, color: C.gray800, backgroundColor: C.white },
   coverHeader: { backgroundColor: C.navy, paddingHorizontal: 40, paddingTop: 60, paddingBottom: 50 },
   coverBrand: { fontSize: 26, fontFamily: 'Helvetica-Bold', color: C.white, letterSpacing: 1 },
@@ -35,57 +36,40 @@ const s = StyleSheet.create({
   coverFooter: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: C.navy, paddingHorizontal: 40, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between' },
   coverFooterText: { fontSize: 7, color: '#7FA3C0' },
 
-  page: { fontFamily: 'Helvetica', fontSize: 8, color: C.gray800, paddingTop: 0, paddingBottom: 40, paddingHorizontal: 0, backgroundColor: C.white },
-  assetHeader: { backgroundColor: C.navy, paddingHorizontal: 32, paddingVertical: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  assetCode: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: C.gold, letterSpacing: 1 },
-  assetName: { fontSize: 14, fontFamily: 'Helvetica-Bold', color: C.white, marginTop: 2 },
-  assetTypeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 3 },
-  assetTypeBadgeText: { fontSize: 8, fontFamily: 'Helvetica-Bold', letterSpacing: 0.5 },
-  assetBody: { paddingHorizontal: 32, paddingTop: 16 },
-  detailsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  detailBox: { flex: 1, backgroundColor: C.gray50, borderRadius: 4, padding: 10, borderTopWidth: 2, borderTopColor: C.gold },
-  detailLabel: { fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: C.gray400, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  detailValue: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: C.gray800 },
-  rateBox: { flex: 1, backgroundColor: C.goldBg, borderRadius: 4, padding: 10, borderTopWidth: 2, borderTopColor: C.gold },
-  rateValue: { fontSize: 14, fontFamily: 'Helvetica-Bold', color: C.navy },
-  galleryTitle: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: C.navy, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, paddingBottom: 4, borderBottomWidth: 1.5, borderBottomColor: C.gold },
-  imageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  imageCard: { width: '48%', marginBottom: 6 },
-  assetImage: { width: '100%', height: 150, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: C.gray200 },
-  imageCaption: { fontSize: 6.5, color: C.gray400, marginTop: 3, textAlign: 'center', fontStyle: 'italic' },
+  /* Asset page */
+  page: { fontFamily: 'Helvetica', fontSize: 8, color: C.gray800, paddingTop: 0, paddingBottom: 36, paddingHorizontal: 0, backgroundColor: C.white },
+  assetHeader: { backgroundColor: C.navy, paddingHorizontal: 24, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  assetCode: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.gold, letterSpacing: 1 },
+  assetName: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: C.white, marginTop: 1 },
+  assetTypeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 3 },
+  assetTypeBadgeText: { fontSize: 7, fontFamily: 'Helvetica-Bold', letterSpacing: 0.5 },
+  assetBody: { paddingHorizontal: 24, paddingTop: 10 },
+
+  /* Compact details — single row of 5 boxes */
+  detailStrip: { flexDirection: 'row', gap: 6, marginBottom: 10 },
+  detailMini: { flex: 1, backgroundColor: C.gray50, borderRadius: 3, padding: 6, borderTopWidth: 1.5, borderTopColor: C.gold },
+  detailLabel: { fontSize: 5.5, fontFamily: 'Helvetica-Bold', color: C.gray400, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 },
+  detailValue: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: C.gray800 },
+
+  /* 2x2 Photo Grid — bordered cells */
+  gridRow: { flexDirection: 'row' },
+  gridCell: { width: '50%', borderWidth: 1, borderColor: C.gray200 },
+  gridImage: { width: '100%', height: 220, objectFit: 'cover' },
+  gridCaption: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: C.navy, paddingVertical: 6, paddingHorizontal: 8 },
   noPhotos: { fontSize: 9, color: C.gray400, fontStyle: 'italic', textAlign: 'center', paddingVertical: 30 },
 
-  summaryPage: { fontFamily: 'Helvetica', fontSize: 8, color: C.gray800, paddingTop: 0, paddingBottom: 40, paddingHorizontal: 0, backgroundColor: C.white },
-  summaryHeader: { backgroundColor: C.navy, paddingHorizontal: 32, paddingVertical: 16 },
-  summaryTitle: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: C.white, letterSpacing: 2 },
-  summarySubtitle: { fontSize: 8, color: C.gold, marginTop: 3 },
-  summaryBody: { paddingHorizontal: 32, paddingTop: 20 },
-  tableHead: { flexDirection: 'row', backgroundColor: C.navy, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 4 },
-  tableHeadText: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.white, textTransform: 'uppercase', letterSpacing: 0.5 },
-  tableRow: { flexDirection: 'row', paddingVertical: 7, paddingHorizontal: 10, borderBottomWidth: 0.5, borderBottomColor: C.gray200 },
-  tableRowAlt: { flexDirection: 'row', paddingVertical: 7, paddingHorizontal: 10, borderBottomWidth: 0.5, borderBottomColor: C.gray200, backgroundColor: C.gray50 },
-  tableCell: { fontSize: 8, color: C.gray800 },
-  tableCellBold: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: C.gray800 },
-  totalRow: { flexDirection: 'row', backgroundColor: C.navy, paddingVertical: 10, paddingHorizontal: 10, borderRadius: 4, marginTop: 6 },
-  totalLabel: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: C.white },
-  totalValue: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: C.gold },
-  notesBox: { marginTop: 20, backgroundColor: C.goldBg, borderRadius: 5, padding: 12, borderLeftWidth: 3, borderLeftColor: C.gold },
-  notesLabel: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.navy, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  notesText: { fontSize: 8, color: C.gray600, lineHeight: 1.5 },
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: C.navy, paddingHorizontal: 32, paddingVertical: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  footerText: { fontSize: 6.5, color: '#7FA3C0' },
-  footerBrand: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.gold },
+  /* Footer */
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: C.navy, paddingHorizontal: 24, paddingVertical: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  footerText: { fontSize: 6, color: '#7FA3C0' },
+  footerBrand: { fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: C.gold },
 });
 
-const fmt = (v) => v ? parseFloat(v).toLocaleString('en-IN') : '—';
 const fmtDate = (d) => {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const CoverPage = ({ assets, campaignInfo }) => {
-  const totalMonthly = assets.reduce((sum, a) => sum + parseFloat(a.monthlyRate || 0), 0);
-
   return (
     <Page size="A4" style={s.coverPage}>
       <View style={s.coverHeader}>
@@ -111,16 +95,16 @@ const CoverPage = ({ assets, campaignInfo }) => {
             <Text style={s.coverSummaryLabel}>Locations</Text>
           </View>
           <View style={s.coverSummaryCard}>
-            <Text style={s.coverSummaryValue}>Rs. {fmt(totalMonthly)}</Text>
-            <Text style={s.coverSummaryLabel}>Monthly Rate</Text>
-          </View>
-          <View style={s.coverSummaryCard}>
             <Text style={s.coverSummaryValue}>{assets.filter(a => a.type === 'BILLBOARD' || a.type === 'HOARDING').length}</Text>
             <Text style={s.coverSummaryLabel}>Billboards</Text>
           </View>
           <View style={s.coverSummaryCard}>
             <Text style={s.coverSummaryValue}>{[...new Set(assets.map(a => a.locationCity))].length}</Text>
             <Text style={s.coverSummaryLabel}>Cities</Text>
+          </View>
+          <View style={s.coverSummaryCard}>
+            <Text style={s.coverSummaryValue}>{[...new Set(assets.map(a => a.zone?.name).filter(Boolean))].length}</Text>
+            <Text style={s.coverSummaryLabel}>Zones</Text>
           </View>
         </View>
       </View>
@@ -135,10 +119,16 @@ const CoverPage = ({ assets, campaignInfo }) => {
 
 const AssetPage = ({ asset, pageNum }) => {
   const tb = typeBadge(asset.type);
-  const images = (asset.images || []).filter((img) => img.base64);
+  const images = (asset.images || []).filter((img) => img.base64).slice(0, 4);
+
+  const row1 = images.slice(0, 2);
+  const row2 = images.slice(2, 4);
+
+  const defaultLabels = ['Front View', 'Left Angle', 'Right Angle', 'Close-up'];
 
   return (
     <Page size="A4" style={s.page}>
+      {/* Compact header bar */}
       <View style={s.assetHeader}>
         <View>
           <Text style={s.assetCode}>{asset.code}</Text>
@@ -150,48 +140,88 @@ const AssetPage = ({ asset, pageNum }) => {
       </View>
 
       <View style={s.assetBody}>
-        <View style={s.detailsRow}>
-          <View style={s.detailBox}>
+        {/* Single row of compact detail boxes */}
+        <View style={s.detailStrip}>
+          <View style={s.detailMini}>
             <Text style={s.detailLabel}>Size (ft)</Text>
             <Text style={s.detailValue}>
               {asset.sizeWidth && asset.sizeHeight ? `${asset.sizeWidth} × ${asset.sizeHeight}` : '—'}
             </Text>
           </View>
-          <View style={s.detailBox}>
+          <View style={s.detailMini}>
             <Text style={s.detailLabel}>Location</Text>
             <Text style={s.detailValue}>{asset.locationCity || '—'}</Text>
-            {asset.locationAddress && <Text style={{ fontSize: 7, color: C.gray600, marginTop: 2 }}>{asset.locationAddress}</Text>}
           </View>
-          <View style={s.detailBox}>
+          <View style={s.detailMini}>
             <Text style={s.detailLabel}>Zone</Text>
             <Text style={s.detailValue}>{asset.zone?.name || '—'}</Text>
           </View>
-        </View>
-
-        <View style={s.detailsRow}>
-          <View style={s.detailBox}>
+          <View style={s.detailMini}>
             <Text style={s.detailLabel}>Illumination</Text>
             <Text style={s.detailValue}>{asset.illumination || '—'}</Text>
           </View>
-          <View style={s.detailBox}>
-            <Text style={s.detailLabel}>Condition</Text>
-            <Text style={s.detailValue}>{asset.condition || '—'}</Text>
-          </View>
-          <View style={s.rateBox}>
-            <Text style={s.detailLabel}>Monthly Rate</Text>
-            <Text style={s.rateValue}>Rs. {fmt(asset.monthlyRate)}</Text>
+          <View style={s.detailMini}>
+            <Text style={s.detailLabel}>Facing</Text>
+            <Text style={s.detailValue}>{asset.facing || '—'}</Text>
           </View>
         </View>
 
-        <Text style={s.galleryTitle}>Photo Gallery ({images.length} {images.length === 1 ? 'photo' : 'photos'})</Text>
+        {/* 2x2 Photo Grid */}
         {images.length > 0 ? (
-          <View style={s.imageGrid}>
-            {images.map((img) => (
-              <View key={img.id} style={s.imageCard}>
-                <Image src={img.base64} style={s.assetImage} />
-                {img.caption && <Text style={s.imageCaption}>{img.caption}</Text>}
+          <View>
+            {/* Row 1 */}
+            <View style={s.gridRow}>
+              <View style={s.gridCell}>
+                <Image src={row1[0].base64} style={s.gridImage} />
+                <Text style={s.gridCaption}>Description : {row1[0].caption || defaultLabels[0]}</Text>
               </View>
-            ))}
+              <View style={s.gridCell}>
+                {row1[1] ? (
+                  <>
+                    <Image src={row1[1].base64} style={s.gridImage} />
+                    <Text style={s.gridCaption}>Description : {row1[1].caption || defaultLabels[1]}</Text>
+                  </>
+                ) : (
+                  <View style={{ height: 220, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 8, color: C.gray400 }}>No image</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Row 2 */}
+            <View style={s.gridRow}>
+              <View style={s.gridCell}>
+                {row2[0] ? (
+                  <>
+                    <Image src={row2[0].base64} style={s.gridImage} />
+                    <Text style={s.gridCaption}>Description : {row2[0].caption || defaultLabels[2]}</Text>
+                  </>
+                ) : (
+                  <>
+                    <View style={{ height: 220, justifyContent: 'center', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 8, color: C.gray400 }}>No image</Text>
+                    </View>
+                    <Text style={s.gridCaption}>Description :</Text>
+                  </>
+                )}
+              </View>
+              <View style={s.gridCell}>
+                {row2[1] ? (
+                  <>
+                    <Image src={row2[1].base64} style={s.gridImage} />
+                    <Text style={s.gridCaption}>Description : {row2[1].caption || defaultLabels[3]}</Text>
+                  </>
+                ) : (
+                  <>
+                    <View style={{ height: 220, justifyContent: 'center', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 8, color: C.gray400 }}>No image</Text>
+                    </View>
+                    <Text style={s.gridCaption}>Description :</Text>
+                  </>
+                )}
+              </View>
+            </View>
           </View>
         ) : (
           <Text style={s.noPhotos}>No photos available for this asset.</Text>
@@ -207,76 +237,12 @@ const AssetPage = ({ asset, pageNum }) => {
   );
 };
 
-const SummaryPage = ({ assets, pageNum }) => {
-  const totalMonthly = assets.reduce((sum, a) => sum + parseFloat(a.monthlyRate || 0), 0);
-
-  return (
-    <Page size="A4" style={s.summaryPage}>
-      <View style={s.summaryHeader}>
-        <Text style={s.summaryTitle}>PRICING SUMMARY</Text>
-        <Text style={s.summarySubtitle}>{assets.length} Locations | Generated {fmtDate(new Date())}</Text>
-      </View>
-
-      <View style={s.summaryBody}>
-        <View style={s.tableHead}>
-          <Text style={[s.tableHeadText, { width: '8%' }]}>#</Text>
-          <Text style={[s.tableHeadText, { width: '14%' }]}>Code</Text>
-          <Text style={[s.tableHeadText, { width: '22%' }]}>Name</Text>
-          <Text style={[s.tableHeadText, { width: '12%' }]}>Type</Text>
-          <Text style={[s.tableHeadText, { width: '12%' }]}>Size (ft)</Text>
-          <Text style={[s.tableHeadText, { width: '16%' }]}>Location</Text>
-          <Text style={[s.tableHeadText, { width: '16%', textAlign: 'right' }]}>Rate/Month</Text>
-        </View>
-
-        {assets.map((a, i) => (
-          <View key={a.id} style={i % 2 === 1 ? s.tableRowAlt : s.tableRow}>
-            <Text style={[s.tableCell, { width: '8%' }]}>{i + 1}</Text>
-            <Text style={[s.tableCellBold, { width: '14%', color: C.navy }]}>{a.code}</Text>
-            <Text style={[s.tableCell, { width: '22%' }]}>{a.name}</Text>
-            <Text style={[s.tableCell, { width: '12%' }]}>{a.type}</Text>
-            <Text style={[s.tableCell, { width: '12%' }]}>{a.sizeWidth && a.sizeHeight ? `${a.sizeWidth}×${a.sizeHeight}` : '—'}</Text>
-            <Text style={[s.tableCell, { width: '16%' }]}>{a.locationCity || '—'}</Text>
-            <Text style={[s.tableCellBold, { width: '16%', textAlign: 'right' }]}>Rs. {fmt(a.monthlyRate)}</Text>
-          </View>
-        ))}
-
-        <View style={s.totalRow}>
-          <Text style={[s.totalLabel, { flex: 1 }]}>Total Monthly Rate</Text>
-          <Text style={s.totalValue}>Rs. {fmt(totalMonthly)}</Text>
-        </View>
-
-        <View style={{ marginTop: 20 }}>
-          <Text style={[s.notesLabel, { marginBottom: 6 }]}>Terms & Conditions</Text>
-          {[
-            'Rates are exclusive of applicable taxes (GST @ 18%).',
-            'Campaign dates are subject to asset availability at the time of confirmation.',
-            'This proposal is valid for 15 days from the date of issue.',
-            'Printing, mounting, and installation charges may apply separately.',
-            'Advance payment required as per company policy before campaign commencement.',
-          ].map((term, i) => (
-            <Text key={i} style={{ fontSize: 7, color: C.gray600, marginBottom: 3, lineHeight: 1.4 }}>
-              {i + 1}. {term}
-            </Text>
-          ))}
-        </View>
-      </View>
-
-      <View style={s.footer}>
-        <Text style={s.footerBrand}>AdERP Media</Text>
-        <Text style={s.footerText}>Campaign Proposal</Text>
-        <Text style={s.footerText}>Page {pageNum}</Text>
-      </View>
-    </Page>
-  );
-};
-
 const AssetCampaignPDF = ({ assets, campaignInfo }) => (
   <Document>
     <CoverPage assets={assets} campaignInfo={campaignInfo} />
     {assets.map((asset, i) => (
       <AssetPage key={asset.id} asset={asset} pageNum={i + 2} />
     ))}
-    <SummaryPage assets={assets} pageNum={assets.length + 2} />
   </Document>
 );
 

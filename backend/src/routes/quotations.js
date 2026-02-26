@@ -16,6 +16,8 @@ router.post(
   authorize('ADMIN', 'MANAGER'),
   [
     body('clientId').isInt({ min: 1 }).withMessage('Client is required.'),
+    body('startDate').optional().isISO8601().withMessage('Start date must be a valid date.'),
+    body('endDate').optional().isISO8601().withMessage('End date must be a valid date.'),
     body('validUntil').isISO8601().withMessage('Valid until date is required.'),
     body('items').isArray({ min: 1 }).withMessage('At least one item is required.'),
     body('items.*.description').trim().notEmpty().withMessage('Item description is required.'),
@@ -30,6 +32,8 @@ router.put(
   authorize('ADMIN', 'MANAGER'),
   [
     body('clientId').optional().isInt({ min: 1 }),
+    body('startDate').optional().isISO8601(),
+    body('endDate').optional().isISO8601(),
     body('validUntil').optional().isISO8601(),
     body('status').optional().isIn(['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED']),
     body('taxRate').optional().isFloat({ min: 0, max: 100 }),

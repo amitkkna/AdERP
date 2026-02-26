@@ -62,7 +62,8 @@ const Availability = () => {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [clients, setClients] = useState([]);
-  const [quoteForm, setQuoteForm] = useState({ clientId: '', months: 1, validDays: 30 });
+  const [quoteForm, setQuoteForm] = useState({ clientId: '', fromDate: '', toDate: '', validDays: 30 });
+  const [quotePrices, setQuotePrices] = useState({});   // { assetId: editedRate }
   const [quoteSubmitting, setQuoteSubmitting] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
 
@@ -259,45 +260,62 @@ const Availability = () => {
     if (selectedIds.size === 0) return toast.error('Select at least one asset');
     fetchClients();
     setQuoteForm({ clientId: '', months: 1, validDays: 30 });
+    // Initialize editable prices from asset data
+    const prices = {};
+    filteredOccupancy.filter(a => selectedIds.has(a.id)).forEach(a => {
+      prices[a.id] = parseFloat(a.monthlyRate) || 0;
+    });
+    setQuotePrices(prices);
     setShowQuoteModal(true);
+  };
+
+  const calcMonths = (from, to) => {
+    if (!from || !to) return 1;
+    const d1 = new Date(from);
+    const d2 = new Date(to);
+    const diff = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+    return Math.max(1, diff || 1);
   };
 
   const handleCreateQuotation = async () => {
     if (!quoteForm.clientId) return toast.error('Select a client');
+    if (!quoteForm.fromDate || !quoteForm.toDate) return toast.error('Select quotation period (from & to dates)');
+    if (selectedAssets.length === 0) return toast.error('No assets selected');
     setQuoteSubmitting(true);
     try {
+      const months = calcMonths(quoteForm.fromDate, quoteForm.toDate);
       const items = selectedAssets.map(a => ({
         description: `${a.name} (${a.code})`,
-        location: `${a.locationAddress}, ${a.locationCity}`,
-        size: `${a.sizeWidth}×${a.sizeHeight} ft`,
-        monthlyRate: parseFloat(a.monthlyRate),
-        months: parseInt(quoteForm.months),
-        amount: parseFloat(a.monthlyRate) * parseInt(quoteForm.months),
+        location: `${a.locationAddress || ''}, ${a.locationCity || ''}`.replace(/^, |, $/g, ''),
+        size: a.sizeWidth && a.sizeHeight ? `${a.sizeWidth}×${a.sizeHeight} ft` : '',
+        monthlyRate: quotePrices[a.id] ?? (parseFloat(a.monthlyRate) || 0),
+        months,
         assetId: a.id,
       }));
-      const subtotal = items.reduce((s, i) => s + i.amount, 0);
-      const taxRate = 18;
-      const taxAmount = subtotal * taxRate / 100;
-      const totalAmount = subtotal + taxAmount;
 
       const validUntil = new Date();
-      validUntil.setDate(validUntil.getDate() + parseInt(quoteForm.validDays));
+      validUntil.setDate(validUntil.getDate() + (parseInt(quoteForm.validDays) || 30));
 
       const res = await post('/quotations', {
         clientId: parseInt(quoteForm.clientId),
+        startDate: new Date(quoteForm.fromDate).toISOString(),
+        endDate: new Date(quoteForm.toDate).toISOString(),
         validUntil: validUntil.toISOString(),
-        taxRate,
+        taxRate: 18,
         items,
-        subtotal,
-        taxAmount,
-        totalAmount,
       });
       toast.success('Quotation created!');
       setShowQuoteModal(false);
       setSelectedIds(new Set());
-      navigate(`/quotations/${res.data.id}`);
-    } catch (_) {}
-    setQuoteSubmitting(false);
+      if (res?.data?.id) {
+        navigate(`/quotations/${res.data.id}`);
+      }
+    } catch (err) {
+      // useApi already shows toast.error
+      console.error('Quotation creation failed:', err);
+    } finally {
+      setQuoteSubmitting(false);
+    }
   };
 
   const handleDownloadPDF = async () => {
@@ -305,7 +323,12 @@ const Availability = () => {
     setPdfGenerating(true);
     try {
       const res = await post('/assets/campaign-data', { assetIds: [...selectedIds] });
-      const blob = await pdf(<AssetCampaignPDF assets={res.data} />).toBlob();
+      const assetData = res?.data || [];
+      if (assetData.length === 0) {
+        toast.error('No asset data returned');
+        return;
+      }
+      const blob = await pdf(<AssetCampaignPDF assets={assetData} />).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -313,8 +336,11 @@ const Availability = () => {
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Campaign PDF downloaded!');
-    } catch (_) { toast.error('Failed to generate PDF'); }
-    setPdfGenerating(false);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+    } finally {
+      setPdfGenerating(false);
+    }
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -900,18 +926,30 @@ const Availability = () => {
           )}
 
           {/* Create Quotation Modal */}
-          {showQuoteModal && (
-            <Modal title="Create Quotation from Selected Assets" size="lg" onClose={() => setShowQuoteModal(false)}>
+          <Modal isOpen={showQuoteModal} title="Create Quotation from Selected Assets" size="lg" onClose={() => setShowQuoteModal(false)}>
               <div className="space-y-4">
-                {/* Selected assets summary */}
+                {/* Selected assets with editable prices */}
                 <div className="bg-gray-50 rounded-xl p-3">
-                  <p className="text-xs font-semibold text-gray-500 mb-2">{selectedAssets.length} Assets Selected</p>
-                  <div className="max-h-40 overflow-y-auto space-y-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-500">{selectedAssets.length} Assets Selected</p>
+                    <p className="text-xs font-semibold text-gray-400">Monthly Rate</p>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-1.5">
                     {selectedAssets.map(a => (
-                      <div key={a.id} className="flex items-center justify-between text-sm">
-                        <span className="font-mono text-primary-700 text-xs">{a.code}</span>
-                        <span className="text-gray-600 truncate mx-2 flex-1">{a.name}</span>
-                        <span className="font-semibold text-gray-800">{fmtCurrency(a.monthlyRate)}</span>
+                      <div key={a.id} className="flex items-center gap-2 text-sm">
+                        <span className="font-mono text-primary-700 text-xs w-24 shrink-0">{a.code}</span>
+                        <span className="text-gray-600 truncate flex-1">{a.name}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-gray-400 text-xs">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="100"
+                            className="w-24 px-2 py-1 text-right text-sm font-semibold border border-gray-200 rounded-lg focus:border-primary-400 focus:ring-1 focus:ring-primary-200 outline-none"
+                            value={quotePrices[a.id] ?? ''}
+                            onChange={e => setQuotePrices(p => ({ ...p, [a.id]: parseFloat(e.target.value) || 0 }))}
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -930,16 +968,25 @@ const Availability = () => {
                   </select>
                 </div>
 
-                {/* Duration & Validity */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Period & Validity */}
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Duration (months)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">From Date *</label>
                     <input
-                      type="number"
-                      min="1"
+                      type="date"
                       className="input-field"
-                      value={quoteForm.months}
-                      onChange={e => setQuoteForm(f => ({ ...f, months: e.target.value }))}
+                      value={quoteForm.fromDate}
+                      onChange={e => setQuoteForm(f => ({ ...f, fromDate: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">To Date *</label>
+                    <input
+                      type="date"
+                      className="input-field"
+                      value={quoteForm.toDate}
+                      min={quoteForm.fromDate || undefined}
+                      onChange={e => setQuoteForm(f => ({ ...f, toDate: e.target.value }))}
                     />
                   </div>
                   <div>
@@ -953,22 +1000,35 @@ const Availability = () => {
                     />
                   </div>
                 </div>
+                {quoteForm.fromDate && quoteForm.toDate && (
+                  <p className="text-xs text-gray-500 -mt-2">
+                    Period: {calcMonths(quoteForm.fromDate, quoteForm.toDate)} month(s)
+                  </p>
+                )}
 
                 {/* Totals */}
-                <div className="bg-primary-50 rounded-xl p-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">Subtotal ({quoteForm.months} mo × {selectedAssets.length} assets)</span>
-                    <span className="font-semibold">{fmtCurrency(selectedAssets.reduce((s, a) => s + parseFloat(a.monthlyRate || 0), 0) * (parseInt(quoteForm.months) || 1))}</span>
-                  </div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">GST @ 18%</span>
-                    <span className="font-semibold">{fmtCurrency(selectedAssets.reduce((s, a) => s + parseFloat(a.monthlyRate || 0), 0) * (parseInt(quoteForm.months) || 1) * 0.18)}</span>
-                  </div>
-                  <div className="flex justify-between text-base font-bold border-t border-primary-200 pt-2 mt-2">
-                    <span>Total</span>
-                    <span className="text-primary-700">{fmtCurrency(selectedAssets.reduce((s, a) => s + parseFloat(a.monthlyRate || 0), 0) * (parseInt(quoteForm.months) || 1) * 1.18)}</span>
-                  </div>
-                </div>
+                {(() => {
+                  const monthlyTotal = selectedAssets.reduce((s, a) => s + (quotePrices[a.id] ?? (parseFloat(a.monthlyRate) || 0)), 0);
+                  const months = calcMonths(quoteForm.fromDate, quoteForm.toDate);
+                  const subtotal = monthlyTotal * months;
+                  const gst = subtotal * 0.18;
+                  return (
+                    <div className="bg-primary-50 rounded-xl p-4">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-gray-600">Subtotal ({months} mo × {selectedAssets.length} assets)</span>
+                        <span className="font-semibold">{fmtCurrency(subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-gray-600">GST @ 18%</span>
+                        <span className="font-semibold">{fmtCurrency(gst)}</span>
+                      </div>
+                      <div className="flex justify-between text-base font-bold border-t border-primary-200 pt-2 mt-2">
+                        <span>Total</span>
+                        <span className="text-primary-700">{fmtCurrency(subtotal + gst)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Actions */}
                 <div className="flex justify-end gap-3 pt-2">
@@ -983,7 +1043,6 @@ const Availability = () => {
                 </div>
               </div>
             </Modal>
-          )}
         </>
       )}
     </div>

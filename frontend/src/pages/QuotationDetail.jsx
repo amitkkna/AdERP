@@ -229,13 +229,22 @@ const QuotationDetail = () => {
             </div>
           </div>
 
-          {/* Validity */}
+          {/* Period & Validity */}
           <div className="card">
             <div className="flex items-center gap-2 mb-3">
               <MdCalendarMonth className="text-primary-600 text-lg" />
-              <h3 className="text-sm font-semibold text-gray-700">Validity</h3>
+              <h3 className="text-sm font-semibold text-gray-700">Period & Validity</h3>
             </div>
+            {quotation.startDate && quotation.endDate && (
+              <div className="bg-primary-50 p-3 rounded-xl mb-3 text-center">
+                <p className="text-xs text-gray-500 mb-1">Quotation Period</p>
+                <p className="text-sm font-bold text-primary-700">
+                  {fmtDate(quotation.startDate)} — {fmtDate(quotation.endDate)}
+                </p>
+              </div>
+            )}
             <div className={`text-center p-3 rounded-xl ${isExpired ? 'bg-red-50' : 'bg-green-50'}`}>
+              <p className="text-xs text-gray-500 mb-1">Valid Until</p>
               <p className={`text-lg font-bold ${isExpired ? 'text-red-600' : 'text-green-700'}`}>
                 {fmtDate(quotation.validUntil)}
               </p>

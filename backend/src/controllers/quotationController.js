@@ -4,8 +4,16 @@ const { parsePagination, paginatedResponse, successResponse } = require('../util
 
 const generateQuotationNo = async () => {
   const yy = String(new Date().getFullYear()).slice(-2);
-  const count = await prisma.quotation.count();
-  return `QT-${yy}-${String(count + 1).padStart(4, '0')}`;
+  const last = await prisma.quotation.findFirst({
+    orderBy: { id: 'desc' },
+    select: { quotationNo: true },
+  });
+  let nextNum = 1;
+  if (last?.quotationNo) {
+    const match = last.quotationNo.match(/QT-\d{2}-(\d+)/);
+    if (match) nextNum = parseInt(match[1], 10) + 1;
+  }
+  return `QT-${yy}-${String(nextNum).padStart(4, '0')}`;
 };
 
 const CLIENT_SELECT = {
@@ -108,7 +116,7 @@ exports.createQuotation = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Validation failed.', errors: errors.array() });
     }
 
-    const { clientId, validUntil, taxRate = 18, notes, terms, items } = req.body;
+    const { clientId, validUntil, taxRate = 18, notes, terms, items, startDate, endDate } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'At least one item is required.' });
@@ -128,6 +136,8 @@ exports.createQuotation = async (req, res, next) => {
       data: {
         quotationNo,
         clientId: parseInt(clientId),
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
         validUntil: new Date(validUntil),
         taxRate: tax,
         subtotal,
