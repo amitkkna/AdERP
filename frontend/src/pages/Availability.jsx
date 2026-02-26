@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { pdf } from '@react-pdf/renderer';
 import useApi from '../hooks/useApi';
+import Modal from '../components/common/Modal';
+import AssetCampaignPDF from '../components/pdf/AssetCampaignPDF';
+import toast from 'react-hot-toast';
 import {
   MdChevronLeft, MdChevronRight, MdSearch, MdCalendarMonth,
   MdCheckCircle, MdCancel, MdGridView, MdDownload,
+  MdTableChart, MdRequestQuote, MdPictureAsPdf, MdSelectAll,
 } from 'react-icons/md';
 
 const MONTH_NAMES = [
@@ -18,8 +24,12 @@ const occupancyBadge = (pct) => {
   return 'bg-green-100 text-green-700';
 };
 
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const fmtCurrency = (v) => v ? `₹${parseFloat(v).toLocaleString('en-IN')}` : '—';
+
 const Availability = () => {
-  const { get, loading } = useApi();
+  const { get, post, loading } = useApi();
+  const navigate = useNavigate();
   const today = new Date();
 
   const [tab, setTab] = useState('matrix');
@@ -34,7 +44,7 @@ const Availability = () => {
   // Matrix state
   const [matrixData, setMatrixData] = useState(null);
   const [matrixLoading, setMatrixLoading] = useState(false);
-  const [tooltip, setTooltip] = useState(null); // { clientName, bookingCode, day, x, y }
+  const [tooltip, setTooltip] = useState(null);
 
   // Calendar state
   const [assets, setAssets] = useState([]);
@@ -42,6 +52,19 @@ const Availability = () => {
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [calData, setCalData] = useState(null);
   const [hoveredDay, setHoveredDay] = useState(null);
+
+  // Multiple Assets tab state
+  const [occupancyData, setOccupancyData] = useState([]);
+  const [occupancyLoading, setOccupancyLoading] = useState(false);
+  const [multiSearch, setMultiSearch] = useState('');
+  const [multiType, setMultiType] = useState('');
+  const [multiZone, setMultiZone] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [clients, setClients] = useState([]);
+  const [quoteForm, setQuoteForm] = useState({ clientId: '', months: 1, validDays: 30 });
+  const [quoteSubmitting, setQuoteSubmitting] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -56,6 +79,10 @@ const Availability = () => {
   useEffect(() => {
     if (tab === 'calendar' && selectedAsset) fetchCalendar();
   }, [tab, selectedAsset, year, month]);
+
+  useEffect(() => {
+    if (tab === 'multi') fetchOccupancy();
+  }, [tab, multiType, multiZone]);
 
   // ── Data fetchers ─────────────────────────────────────────────────────────
   const fetchZones = async () => {
@@ -87,6 +114,25 @@ const Availability = () => {
     try {
       const res = await get(`/assets/${selectedAsset.id}/availability`, { year, month });
       setCalData(res.data);
+    } catch (_) {}
+  };
+
+  const fetchOccupancy = async () => {
+    setOccupancyLoading(true);
+    try {
+      const params = {};
+      if (multiType) params.type = multiType;
+      if (multiZone) params.zoneId = multiZone;
+      const res = await get('/assets/occupancy', params);
+      setOccupancyData(res.data || []);
+    } catch (_) {}
+    setOccupancyLoading(false);
+  };
+
+  const fetchClients = async () => {
+    try {
+      const res = await get('/clients', { limit: 200 });
+      setClients(res.data || []);
     } catch (_) {}
   };
 
@@ -182,6 +228,95 @@ const Availability = () => {
   const bookedCount = calData?.days.filter(d => d.status === 'BOOKED').length || 0;
   const availCount  = calData?.days.filter(d => d.status === 'AVAILABLE').length || 0;
 
+  // ── Multiple Assets derived & handlers ──────────────────────────────────
+  const filteredOccupancy = occupancyData.filter(a =>
+    !multiSearch ||
+    a.code.toLowerCase().includes(multiSearch.toLowerCase()) ||
+    a.name.toLowerCase().includes(multiSearch.toLowerCase()) ||
+    a.locationCity.toLowerCase().includes(multiSearch.toLowerCase()) ||
+    a.locationAddress.toLowerCase().includes(multiSearch.toLowerCase())
+  );
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredOccupancy.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredOccupancy.map(a => a.id)));
+    }
+  };
+
+  const selectedAssets = filteredOccupancy.filter(a => selectedIds.has(a.id));
+
+  const handleOpenQuoteModal = () => {
+    if (selectedIds.size === 0) return toast.error('Select at least one asset');
+    fetchClients();
+    setQuoteForm({ clientId: '', months: 1, validDays: 30 });
+    setShowQuoteModal(true);
+  };
+
+  const handleCreateQuotation = async () => {
+    if (!quoteForm.clientId) return toast.error('Select a client');
+    setQuoteSubmitting(true);
+    try {
+      const items = selectedAssets.map(a => ({
+        description: `${a.name} (${a.code})`,
+        location: `${a.locationAddress}, ${a.locationCity}`,
+        size: `${a.sizeWidth}×${a.sizeHeight} ft`,
+        monthlyRate: parseFloat(a.monthlyRate),
+        months: parseInt(quoteForm.months),
+        amount: parseFloat(a.monthlyRate) * parseInt(quoteForm.months),
+        assetId: a.id,
+      }));
+      const subtotal = items.reduce((s, i) => s + i.amount, 0);
+      const taxRate = 18;
+      const taxAmount = subtotal * taxRate / 100;
+      const totalAmount = subtotal + taxAmount;
+
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + parseInt(quoteForm.validDays));
+
+      const res = await post('/quotations', {
+        clientId: parseInt(quoteForm.clientId),
+        validUntil: validUntil.toISOString(),
+        taxRate,
+        items,
+        subtotal,
+        taxAmount,
+        totalAmount,
+      });
+      toast.success('Quotation created!');
+      setShowQuoteModal(false);
+      setSelectedIds(new Set());
+      navigate(`/quotations/${res.data.id}`);
+    } catch (_) {}
+    setQuoteSubmitting(false);
+  };
+
+  const handleDownloadPDF = async () => {
+    if (selectedIds.size === 0) return toast.error('Select at least one asset');
+    setPdfGenerating(true);
+    try {
+      const res = await post('/assets/campaign-data', { assetIds: [...selectedIds] });
+      const blob = await pdf(<AssetCampaignPDF assets={res.data} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Campaign_Proposal_${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Campaign PDF downloaded!');
+    } catch (_) { toast.error('Failed to generate PDF'); }
+    setPdfGenerating(false);
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div>
@@ -191,15 +326,35 @@ const Availability = () => {
           <h1 className="text-2xl font-bold text-gray-900">Availability</h1>
           <p className="text-gray-500 text-sm">Track occupancy across all assets and plan campaigns</p>
         </div>
-        {tab === 'matrix' && (
-          <button
-            onClick={exportExcel}
-            disabled={!matrixData}
-            className="btn-primary flex items-center gap-2 disabled:opacity-50"
-          >
-            <MdDownload className="text-lg" /> Download Excel
-          </button>
-        )}
+        <div className="flex gap-2">
+          {tab === 'matrix' && (
+            <button
+              onClick={exportExcel}
+              disabled={!matrixData}
+              className="btn-primary flex items-center gap-2 disabled:opacity-50"
+            >
+              <MdDownload className="text-lg" /> Download Excel
+            </button>
+          )}
+          {tab === 'multi' && (
+            <>
+              <button
+                onClick={handleOpenQuoteModal}
+                disabled={selectedIds.size === 0}
+                className="btn-primary flex items-center gap-2 disabled:opacity-50"
+              >
+                <MdRequestQuote className="text-lg" /> Create Quotation ({selectedIds.size})
+              </button>
+              <button
+                onClick={handleDownloadPDF}
+                disabled={selectedIds.size === 0 || pdfGenerating}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                <MdPictureAsPdf className="text-lg" /> {pdfGenerating ? 'Generating...' : `Campaign PDF (${selectedIds.size})`}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -207,6 +362,7 @@ const Availability = () => {
         {[
           { key: 'matrix',   icon: <MdGridView />,      label: 'Matrix Report' },
           { key: 'calendar', icon: <MdCalendarMonth />, label: 'Single Asset' },
+          { key: 'multi',    icon: <MdTableChart />,    label: 'Multiple Assets' },
         ].map(t => (
           <button
             key={t.key}
@@ -598,6 +754,237 @@ const Availability = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════
+          MULTIPLE ASSETS TAB
+      ════════════════════════════════════════════════════════════════════ */}
+      {tab === 'multi' && (
+        <>
+          {/* Filters */}
+          <div className="flex flex-wrap gap-3 mb-4">
+            <div className="relative flex-1 min-w-[200px] max-w-xs">
+              <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                className="input-field pl-9 text-sm"
+                placeholder="Search assets…"
+                value={multiSearch}
+                onChange={e => setMultiSearch(e.target.value)}
+              />
+            </div>
+            <select className="input-field text-sm w-44" value={multiType} onChange={e => setMultiType(e.target.value)}>
+              <option value="">All Types</option>
+              {['BILLBOARD','UNIPOLE','HOARDING','GANTRY','OTHER'].map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <select className="input-field text-sm w-44" value={multiZone} onChange={e => setMultiZone(e.target.value)}>
+              <option value="">All Zones</option>
+              {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+            </select>
+            {selectedIds.size > 0 && (
+              <span className="flex items-center text-sm font-medium text-primary-700 bg-primary-50 px-3 rounded-lg">
+                {selectedIds.size} selected
+              </span>
+            )}
+          </div>
+
+          {/* Table */}
+          {occupancyLoading ? (
+            <div className="card flex items-center justify-center py-20">
+              <div className="w-8 h-8 border-[3px] border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="card p-0 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="text-xs border-collapse min-w-full">
+                  <thead>
+                    <tr className="bg-slate-800 text-white">
+                      <th className="sticky left-0 z-20 bg-slate-800 px-2 py-3 text-center w-10">
+                        <input
+                          type="checkbox"
+                          checked={filteredOccupancy.length > 0 && selectedIds.size === filteredOccupancy.length}
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 rounded"
+                        />
+                      </th>
+                      <th className="px-2 py-3 text-center font-semibold w-10">#</th>
+                      <th className="px-3 py-3 text-left font-semibold whitespace-nowrap" style={{ minWidth: 90 }}>Code</th>
+                      <th className="px-3 py-3 text-left font-semibold whitespace-nowrap" style={{ minWidth: 160 }}>Name</th>
+                      <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">District</th>
+                      <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Town</th>
+                      <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Medium</th>
+                      <th className="px-3 py-3 text-left font-semibold whitespace-nowrap" style={{ minWidth: 180 }}>Location</th>
+                      <th className="px-2 py-3 text-center font-semibold">W</th>
+                      <th className="px-2 py-3 text-center font-semibold">H</th>
+                      <th className="px-2 py-3 text-center font-semibold">SqFt</th>
+                      <th className="px-3 py-3 text-left font-semibold">Display</th>
+                      <th className="px-3 py-3 text-left font-semibold">Facing</th>
+                      <th className="px-2 py-3 text-center font-semibold">Lat</th>
+                      <th className="px-2 py-3 text-center font-semibold">Lon</th>
+                      <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Rate/Mo</th>
+                      <th className="px-3 py-3 text-left font-semibold whitespace-nowrap bg-slate-700">Occ. From</th>
+                      <th className="px-3 py-3 text-left font-semibold whitespace-nowrap bg-slate-700">Occ. To</th>
+                      <th className="px-3 py-3 text-left font-semibold whitespace-nowrap bg-slate-700">Client</th>
+                      <th className="px-3 py-3 text-center font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOccupancy.length === 0 && (
+                      <tr><td colSpan={20} className="text-center py-12 text-gray-400">No assets found.</td></tr>
+                    )}
+                    {filteredOccupancy.map((a, i) => {
+                      const isSelected = selectedIds.has(a.id);
+                      return (
+                        <tr
+                          key={a.id}
+                          className={`${isSelected ? 'bg-primary-50' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-primary-50/50 cursor-pointer transition-colors`}
+                          onClick={() => toggleSelect(a.id)}
+                        >
+                          <td className="sticky left-0 z-10 bg-inherit px-2 py-2 text-center border-r border-gray-200">
+                            <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(a.id)} className="w-4 h-4 rounded" onClick={e => e.stopPropagation()} />
+                          </td>
+                          <td className="px-2 py-2 text-center text-gray-400 font-mono">{i + 1}</td>
+                          <td className="px-3 py-2 font-mono font-semibold text-primary-700 whitespace-nowrap">{a.code}</td>
+                          <td className="px-3 py-2 font-medium text-gray-800 whitespace-nowrap" style={{ maxWidth: 200 }}>
+                            <span className="block truncate">{a.name}</span>
+                          </td>
+                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{a.locationDistrict || '—'}</td>
+                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{a.locationCity}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{a.type}</span>
+                          </td>
+                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap text-[11px]" style={{ maxWidth: 200 }}>
+                            <span className="block truncate">{a.locationAddress}</span>
+                          </td>
+                          <td className="px-2 py-2 text-center text-gray-600">{a.sizeWidth}</td>
+                          <td className="px-2 py-2 text-center text-gray-600">{a.sizeHeight}</td>
+                          <td className="px-2 py-2 text-center font-medium text-gray-700">{a.sqft}</td>
+                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap text-[11px]">{a.illumination || '—'}</td>
+                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap text-[11px]">{a.facingDirection || '—'}</td>
+                          <td className="px-2 py-2 text-center text-gray-500 text-[10px] font-mono">{a.latitude ? a.latitude.toFixed(4) : '—'}</td>
+                          <td className="px-2 py-2 text-center text-gray-500 text-[10px] font-mono">{a.longitude ? a.longitude.toFixed(4) : '—'}</td>
+                          <td className="px-3 py-2 text-center font-semibold text-gray-800 whitespace-nowrap">{fmtCurrency(a.monthlyRate)}</td>
+                          <td className="px-3 py-2 whitespace-nowrap bg-amber-50/50">
+                            {a.occupiedFrom ? <span className="text-[11px] text-amber-800 font-medium">{fmtDate(a.occupiedFrom)}</span> : <span className="text-gray-300">—</span>}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap bg-amber-50/50">
+                            {a.occupiedTo ? <span className="text-[11px] text-amber-800 font-medium">{fmtDate(a.occupiedTo)}</span> : <span className="text-gray-300">—</span>}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap bg-amber-50/50">
+                            {a.currentClient ? <span className="text-[11px] font-semibold text-gray-800">{a.currentClient}</span> : <span className="text-green-600 text-[11px] font-medium">Available</span>}
+                          </td>
+                          <td className="px-3 py-2 text-center whitespace-nowrap">
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                              a.status === 'AVAILABLE' ? 'bg-green-100 text-green-700' :
+                              a.status === 'BOOKED' ? 'bg-red-100 text-red-700' :
+                              a.status === 'UNDER_MAINTENANCE' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>{a.status}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footer info */}
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50 text-xs text-gray-500">
+                <span>Showing {filteredOccupancy.length} assets</span>
+                {selectedIds.size > 0 && (
+                  <span className="font-medium text-primary-700">
+                    Total Monthly Rate: {fmtCurrency(selectedAssets.reduce((s, a) => s + parseFloat(a.monthlyRate || 0), 0))}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Create Quotation Modal */}
+          {showQuoteModal && (
+            <Modal title="Create Quotation from Selected Assets" size="lg" onClose={() => setShowQuoteModal(false)}>
+              <div className="space-y-4">
+                {/* Selected assets summary */}
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs font-semibold text-gray-500 mb-2">{selectedAssets.length} Assets Selected</p>
+                  <div className="max-h-40 overflow-y-auto space-y-1">
+                    {selectedAssets.map(a => (
+                      <div key={a.id} className="flex items-center justify-between text-sm">
+                        <span className="font-mono text-primary-700 text-xs">{a.code}</span>
+                        <span className="text-gray-600 truncate mx-2 flex-1">{a.name}</span>
+                        <span className="font-semibold text-gray-800">{fmtCurrency(a.monthlyRate)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Client select */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
+                  <select
+                    className="input-field"
+                    value={quoteForm.clientId}
+                    onChange={e => setQuoteForm(f => ({ ...f, clientId: e.target.value }))}
+                  >
+                    <option value="">Select Client</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.companyName} — {c.contactPerson}</option>)}
+                  </select>
+                </div>
+
+                {/* Duration & Validity */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Duration (months)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="input-field"
+                      value={quoteForm.months}
+                      onChange={e => setQuoteForm(f => ({ ...f, months: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Valid for (days)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="input-field"
+                      value={quoteForm.validDays}
+                      onChange={e => setQuoteForm(f => ({ ...f, validDays: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Totals */}
+                <div className="bg-primary-50 rounded-xl p-4">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">Subtotal ({quoteForm.months} mo × {selectedAssets.length} assets)</span>
+                    <span className="font-semibold">{fmtCurrency(selectedAssets.reduce((s, a) => s + parseFloat(a.monthlyRate || 0), 0) * (parseInt(quoteForm.months) || 1))}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">GST @ 18%</span>
+                    <span className="font-semibold">{fmtCurrency(selectedAssets.reduce((s, a) => s + parseFloat(a.monthlyRate || 0), 0) * (parseInt(quoteForm.months) || 1) * 0.18)}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-bold border-t border-primary-200 pt-2 mt-2">
+                    <span>Total</span>
+                    <span className="text-primary-700">{fmtCurrency(selectedAssets.reduce((s, a) => s + parseFloat(a.monthlyRate || 0), 0) * (parseInt(quoteForm.months) || 1) * 1.18)}</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex justify-end gap-3 pt-2">
+                  <button onClick={() => setShowQuoteModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                  <button
+                    onClick={handleCreateQuotation}
+                    disabled={quoteSubmitting || !quoteForm.clientId}
+                    className="btn-primary disabled:opacity-50"
+                  >
+                    {quoteSubmitting ? 'Creating...' : 'Create Quotation'}
+                  </button>
+                </div>
+              </div>
+            </Modal>
+          )}
+        </>
       )}
     </div>
   );

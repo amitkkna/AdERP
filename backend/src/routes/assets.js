@@ -10,6 +10,8 @@ router.use(authenticate);
 
 router.get('/', assetController.getAssets);
 router.get('/availability/matrix', assetController.getAvailabilityMatrix);
+router.get('/occupancy', assetController.getOccupancy);
+router.post('/campaign-data', assetController.getCampaignData);
 router.post('/check-availability', assetController.checkAvailability);
 router.get('/:id/availability', assetController.getAvailability);
 router.get('/:id', assetController.getAsset);

@@ -492,3 +492,126 @@ exports.checkAvailability = async (req, res, next) => {
     next(error);
   }
 };
+
+// GET /api/assets/occupancy?search=&type=&zoneId=&city=&status=
+exports.getOccupancy = async (req, res, next) => {
+  try {
+    const { search, type, zoneId, city, status } = req.query;
+
+    const where = { isActive: true };
+    if (search) {
+      where.OR = [
+        { code: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+        { locationAddress: { contains: search, mode: 'insensitive' } },
+        { locationCity: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    if (type) where.type = type;
+    if (status) where.status = status;
+    if (zoneId) where.zoneId = parseInt(zoneId);
+    if (city) where.locationCity = { contains: city, mode: 'insensitive' };
+
+    const assets = await prisma.asset.findMany({
+      where,
+      include: {
+        zone: { select: { id: true, name: true, city: true } },
+        images: { where: { isPrimary: true }, take: 1 },
+        bookingAssets: {
+          where: {
+            booking: { status: { in: ['PENDING', 'CONFIRMED', 'ACTIVE'] } },
+          },
+          select: {
+            monthlyRate: true,
+            booking: {
+              select: {
+                id: true, bookingCode: true, startDate: true, endDate: true, status: true,
+                client: { select: { id: true, companyName: true, contactPerson: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ zone: { name: 'asc' } }, { code: 'asc' }],
+    });
+
+    const now = new Date();
+    const result = assets.map((asset) => {
+      const currentBooking = asset.bookingAssets.find(
+        (ba) => new Date(ba.booking.startDate) <= now && new Date(ba.booking.endDate) >= now
+      );
+      const bookings = asset.bookingAssets.map((ba) => ({
+        bookingCode: ba.booking.bookingCode,
+        startDate: ba.booking.startDate,
+        endDate: ba.booking.endDate,
+        status: ba.booking.status,
+        clientName: ba.booking.client.companyName,
+      }));
+
+      return {
+        id: asset.id, code: asset.code, name: asset.name, type: asset.type,
+        locationAddress: asset.locationAddress, locationCity: asset.locationCity,
+        locationDistrict: asset.locationDistrict, latitude: asset.latitude, longitude: asset.longitude,
+        sizeWidth: asset.sizeWidth, sizeHeight: asset.sizeHeight,
+        sqft: Math.round(asset.sizeWidth * asset.sizeHeight),
+        illumination: asset.illumination, facingDirection: asset.facingDirection,
+        condition: asset.condition, ownership: asset.ownership, status: asset.status,
+        monthlyRate: asset.monthlyRate, zone: asset.zone,
+        primaryImage: asset.images[0]?.url || null,
+        occupiedFrom: currentBooking?.booking.startDate || null,
+        occupiedTo: currentBooking?.booking.endDate || null,
+        currentClient: currentBooking?.booking.client.companyName || null,
+        currentBookingCode: currentBooking?.booking.bookingCode || null,
+        bookings,
+      };
+    });
+
+    res.json(successResponse(result));
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/assets/campaign-data  Body: { assetIds: [1,2,3] }
+exports.getCampaignData = async (req, res, next) => {
+  try {
+    const { assetIds } = req.body;
+    if (!assetIds?.length) {
+      return res.status(400).json({ success: false, message: 'assetIds array is required.' });
+    }
+
+    const assets = await prisma.asset.findMany({
+      where: { id: { in: assetIds.map((id) => parseInt(id)) }, isActive: true },
+      include: {
+        zone: { select: { name: true, city: true } },
+        images: { orderBy: { isPrimary: 'desc' } },
+      },
+      orderBy: { code: 'asc' },
+    });
+
+    const enrichedAssets = await Promise.all(
+      assets.map(async (asset) => {
+        const imagesWithBase64 = await Promise.all(
+          asset.images.map(async (img) => {
+            try {
+              const filePath = path.join(__dirname, '..', '..', 'uploads', path.basename(img.url));
+              if (fs.existsSync(filePath)) {
+                const buffer = fs.readFileSync(filePath);
+                const ext = path.extname(filePath).replace('.', '').toLowerCase();
+                const mimeMap = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' };
+                const mime = mimeMap[ext] || 'image/jpeg';
+                return { ...img, base64: `data:${mime};base64,${buffer.toString('base64')}` };
+              }
+              return { ...img, base64: null };
+            } catch { return { ...img, base64: null }; }
+          })
+        );
+        return { ...asset, images: imagesWithBase64 };
+      })
+    );
+
+    res.json(successResponse(enrichedAssets));
+  } catch (error) {
+    next(error);
+  }
+};
